@@ -50,39 +50,6 @@ func InitWithConfig(cfg config.LogConfig) error {
 	return nil
 }
 
-// Init 初始化日志，输出到控制台和文件
-func Init() error {
-	// 配置 lumberjack 文件切割
-	fileWriter := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   "./logs/app.log", // 日志文件路径
-		MaxSize:    100,              // 单个文件最大100MB
-		MaxBackups: 5,                // 最多保留5个旧文件
-		MaxAge:     30,               // 文件保留30天
-		Compress:   true,             // 压缩旧日志文件
-	})
-
-	// 编码配置，结构化JSON输出
-	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.TimeKey = "ts" // 时间字段名
-	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-
-	// 控制台输出
-	consoleWriter := zapcore.AddSync(os.Stdout)
-
-	// 设置日志级别
-	level := zap.InfoLevel
-
-	// 构建日志核心
-	core := zapcore.NewTee(
-		zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), consoleWriter, level),
-		zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), fileWriter, level),
-	)
-
-	// 最终初始化日志对象
-	log = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
-	return nil
-}
-
 // parseLevel 解析日志级别字符串
 func parseLevel(levelStr string) (zapcore.Level, error) {
 	switch levelStr {

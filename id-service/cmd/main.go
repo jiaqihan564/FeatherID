@@ -17,8 +17,18 @@ import (
 )
 
 func main() {
+
+	logCfg := config.LogConfig{
+		Level:      "info",           // 初始日志级别
+		LogPath:    "./logs/app.log", // 日志文件路径
+		MaxSize:    100,              // 单文件最大100MB
+		MaxBackups: 5,                // 最多保留5个历史文件
+		MaxAge:     30,               // 日志保留30天
+		Compress:   true,             // 是否压缩旧日志
+	}
+
 	// 初始化日志
-	if err := logger.Init(); err != nil {
+	if err := logger.InitWithConfig(logCfg); err != nil {
 		panic("日志系统初始化失败: " + err.Error())
 	}
 	defer logger.Sync()
