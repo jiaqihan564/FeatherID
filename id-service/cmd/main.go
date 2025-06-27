@@ -35,6 +35,24 @@ func main() {
 
 	logger.Info("日志系统初始化成功")
 
+	go func() {
+		for {
+			now := time.Now()
+			// 计算明天0点时间
+			next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+			sleep := time.Until(next)
+
+			time.Sleep(sleep)
+
+			logger.Info("触发日志热切换")
+			if err := logger.RebuildLogger(); err != nil {
+				logger.Error("日志热切换失败", zap.Error(err))
+			} else {
+				logger.Info("日志热切换成功")
+			}
+		}
+	}()
+
 	// 数据库配置
 	cfg := config.DBConfig{
 		Host:     "192.168.200.130",

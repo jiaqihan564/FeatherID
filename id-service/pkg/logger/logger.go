@@ -5,6 +5,7 @@ import (
 	"id-service/config"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -16,14 +17,28 @@ import (
 var (
 	log         *zap.Logger
 	atomicLevel zap.AtomicLevel // 支持动态调整级别
+	mu          sync.Mutex      // 确保多协程下安全
+	cfgCache    config.LogConfig
 )
 
+// RebuildLogger 外部调用日志重建
+func RebuildLogger() error {
+	return rebuildLogger()
+}
+
+// InitWithConfigByDate 带日期目录初始化
 func InitWithConfigByDate(cfg config.LogConfig) error {
-	dateStr := time.Now().Format("2006-01-02") // 获取当天日期
+	mu.Lock()
+	defer mu.Unlock()
+	cfgCache = cfg
+	return rebuildLogger()
+}
 
-	logDir := filepath.Join(cfg.LogPath, dateStr)
+// rebuildLogger 内部重建logger
+func rebuildLogger() error {
+	dateStr := time.Now().Format("2006-01-02")
+	logDir := filepath.Join(cfgCache.LogPath, dateStr)
 
-	// 确保目录存在
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		return fmt.Errorf("创建日志目录失败: %w", err)
 	}
@@ -37,22 +52,22 @@ func InitWithConfigByDate(cfg config.LogConfig) error {
 
 	infoFileWriter := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   filepath.Join(logDir, "info.log"),
-		MaxSize:    cfg.MaxSize,
-		MaxBackups: cfg.MaxBackups,
-		MaxAge:     cfg.MaxAge,
-		Compress:   cfg.Compress,
+		MaxSize:    cfgCache.MaxSize,
+		MaxBackups: cfgCache.MaxBackups,
+		MaxAge:     cfgCache.MaxAge,
+		Compress:   cfgCache.Compress,
 	})
 
 	errorFileWriter := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   filepath.Join(logDir, "error.log"),
-		MaxSize:    cfg.MaxSize,
-		MaxBackups: cfg.MaxBackups,
-		MaxAge:     cfg.MaxAge,
-		Compress:   cfg.Compress,
+		MaxSize:    cfgCache.MaxSize,
+		MaxBackups: cfgCache.MaxBackups,
+		MaxAge:     cfgCache.MaxAge,
+		Compress:   cfgCache.Compress,
 	})
 
 	atomicLevel = zap.NewAtomicLevel()
-	level, err := parseLevel(cfg.Level)
+	level, err := parseLevel(cfgCache.Level)
 	if err != nil {
 		return err
 	}
