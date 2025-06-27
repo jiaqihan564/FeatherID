@@ -15,35 +15,53 @@ var (
 	atomicLevel zap.AtomicLevel // 支持动态调整级别
 )
 
-// InitWithConfig 通过配置初始化日志
+// InitWithConfig 完善：区分 info.log、error.log 文件
 func InitWithConfig(cfg config.LogConfig) error {
-	fileWriter := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   cfg.LogPath,
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.TimeKey = "ts"
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoder := zapcore.NewJSONEncoder(encoderConfig)
+
+	consoleWriter := zapcore.AddSync(os.Stdout)
+
+	infoFileWriter := zapcore.AddSync(&lumberjack.Logger{
+		Filename:   cfg.LogPath + "/info.log",
 		MaxSize:    cfg.MaxSize,
 		MaxBackups: cfg.MaxBackups,
 		MaxAge:     cfg.MaxAge,
 		Compress:   cfg.Compress,
 	})
 
-	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.TimeKey = "ts"
-	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	errorFileWriter := zapcore.AddSync(&lumberjack.Logger{
+		Filename:   cfg.LogPath + "/error.log",
+		MaxSize:    cfg.MaxSize,
+		MaxBackups: cfg.MaxBackups,
+		MaxAge:     cfg.MaxAge,
+		Compress:   cfg.Compress,
+	})
 
-	// 设置动态级别控制器
+	// 动态级别控制
 	atomicLevel = zap.NewAtomicLevel()
-
-	// 解析配置中的日志级别
 	level, err := parseLevel(cfg.Level)
 	if err != nil {
 		return err
 	}
 	atomicLevel.SetLevel(level)
 
-	consoleWriter := zapcore.AddSync(os.Stdout)
-
+	// 核心组合：
 	core := zapcore.NewTee(
-		zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), consoleWriter, atomicLevel),
-		zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), fileWriter, atomicLevel),
+		// 控制台输出，所有级别
+		zapcore.NewCore(encoder, consoleWriter, atomicLevel),
+
+		// info.log 文件，info及以上
+		zapcore.NewCore(encoder, infoFileWriter, zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+			return lvl >= zapcore.InfoLevel && lvl < zapcore.ErrorLevel
+		})),
+
+		// error.log 文件，error及以上
+		zapcore.NewCore(encoder, errorFileWriter, zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+			return lvl >= zapcore.ErrorLevel
+		})),
 	)
 
 	log = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
