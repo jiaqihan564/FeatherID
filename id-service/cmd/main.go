@@ -19,12 +19,12 @@ import (
 func main() {
 
 	logCfg := config.LogConfig{
-		Level:      "info",           // 初始日志级别
-		LogPath:    "./logs/app.log", // 日志文件路径
-		MaxSize:    100,              // 单文件最大100MB
-		MaxBackups: 5,                // 最多保留5个历史文件
-		MaxAge:     30,               // 日志保留30天
-		Compress:   true,             // 是否压缩旧日志
+		Level:      "info",    // 初始日志级别
+		LogPath:    "./logs/", // 日志文件路径
+		MaxSize:    100,       // 单文件最大100MB
+		MaxBackups: 5,         // 最多保留5个历史文件
+		MaxAge:     30,        // 日志保留30天
+		Compress:   true,      // 是否压缩旧日志
 	}
 
 	// 初始化日志
@@ -37,7 +37,7 @@ func main() {
 
 	// 数据库配置
 	cfg := config.DBConfig{
-		Host:     "192.168.200.131",
+		Host:     "192.168.200.130",
 		Port:     3306,
 		User:     "root",
 		Password: "mysql_F7KJNF",
