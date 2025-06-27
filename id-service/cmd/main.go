@@ -27,7 +27,7 @@ func main() {
 
 	// 数据库配置
 	cfg := config.DBConfig{
-		Host:     "127.0.0.1",
+		Host:     "192.168.200.131",
 		Port:     3306,
 		User:     "root",
 		Password: "mysql_F7KJNF",
@@ -46,6 +46,7 @@ func main() {
 
 	http.HandleFunc("/api/v1/id", handler.GetIDHandler)
 	http.HandleFunc("/api/v1/id/batch", handler.GetBatchIDHandler)
+	http.HandleFunc("/api/v1/log/level", handler.SetLogLevelHandler)
 
 	server := &http.Server{
 		Addr:         ":8080",

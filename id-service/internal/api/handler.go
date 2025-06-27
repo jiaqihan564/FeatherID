@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"id-service/internal/service"
+	"id-service/pkg/logger"
 )
 
 // response 定义接口统一返回结构
@@ -77,4 +78,16 @@ func (h *Handler) GetBatchIDHandler(w http.ResponseWriter, r *http.Request) {
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// SetLogLevelHandler 动态调整日志级别接口
+func (h *Handler) SetLogLevelHandler(w http.ResponseWriter, r *http.Request) {
+	level := r.URL.Query().Get("level")
+	if level == "" {
+		writeJSON(w, response{Code: 1, Msg: "参数level不能为空"})
+		return
+	}
+
+	logger.SetLevel(level)
+	writeJSON(w, response{Code: 0, Msg: "日志级别调整成功"})
 }
