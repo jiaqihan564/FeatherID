@@ -1,8 +1,11 @@
 package logger
 
 import (
+	"fmt"
 	"id-service/config"
 	"os"
+	"path/filepath"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -15,8 +18,16 @@ var (
 	atomicLevel zap.AtomicLevel // 支持动态调整级别
 )
 
-// InitWithConfig 完善：区分 info.log、error.log 文件
-func InitWithConfig(cfg config.LogConfig) error {
+func InitWithConfigByDate(cfg config.LogConfig) error {
+	dateStr := time.Now().Format("2006-01-02") // 获取当天日期
+
+	logDir := filepath.Join(cfg.LogPath, dateStr)
+
+	// 确保目录存在
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return fmt.Errorf("创建日志目录失败: %w", err)
+	}
+
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.TimeKey = "ts"
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -25,7 +36,7 @@ func InitWithConfig(cfg config.LogConfig) error {
 	consoleWriter := zapcore.AddSync(os.Stdout)
 
 	infoFileWriter := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   cfg.LogPath + "/info.log",
+		Filename:   filepath.Join(logDir, "info.log"),
 		MaxSize:    cfg.MaxSize,
 		MaxBackups: cfg.MaxBackups,
 		MaxAge:     cfg.MaxAge,
@@ -33,14 +44,13 @@ func InitWithConfig(cfg config.LogConfig) error {
 	})
 
 	errorFileWriter := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   cfg.LogPath + "/error.log",
+		Filename:   filepath.Join(logDir, "error.log"),
 		MaxSize:    cfg.MaxSize,
 		MaxBackups: cfg.MaxBackups,
 		MaxAge:     cfg.MaxAge,
 		Compress:   cfg.Compress,
 	})
 
-	// 动态级别控制
 	atomicLevel = zap.NewAtomicLevel()
 	level, err := parseLevel(cfg.Level)
 	if err != nil {
@@ -48,17 +58,11 @@ func InitWithConfig(cfg config.LogConfig) error {
 	}
 	atomicLevel.SetLevel(level)
 
-	// 核心组合：
 	core := zapcore.NewTee(
-		// 控制台输出，所有级别
 		zapcore.NewCore(encoder, consoleWriter, atomicLevel),
-
-		// info.log 文件，info及以上
 		zapcore.NewCore(encoder, infoFileWriter, zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 			return lvl >= zapcore.InfoLevel && lvl < zapcore.ErrorLevel
 		})),
-
-		// error.log 文件，error及以上
 		zapcore.NewCore(encoder, errorFileWriter, zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 			return lvl >= zapcore.ErrorLevel
 		})),
